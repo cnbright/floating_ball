@@ -1,0 +1,2 @@
+# floating_ball
+基于pyside6开发的windows平台悬浮球工具
