@@ -534,13 +534,15 @@ class WindowB(QWidget):
         time.sleep(0.5)
         if win32gui.IsWindowVisible(hwnd):
             self.hide()
-            while win32gui.IsWindowVisible(hwnd):
-                pass
             # 获取窗口位置和大小
             left, top, right, bottom = win32gui.GetWindowRect(hwnd)
             # 计算宽度和高度
             width = right - left
             height = bottom - top
+            
+            while win32gui.IsWindowVisible(hwnd):
+                pass
+
             self.move(left+width/2-self.width()/2, top+height/2-self.height()/2)
             self.show()
             
