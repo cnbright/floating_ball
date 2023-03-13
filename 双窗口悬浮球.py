@@ -54,7 +54,7 @@ def set_system_volume(vol):
     volume.SetMasterVolumeLevelScalar(vol/100, None)
 
 
-
+# Slider类
 class CircularSlider(QSlider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -282,12 +282,58 @@ class WindowA(QWidget):
         if event.button() == Qt.LeftButton:
             self.mouse_flag = True
             self.drag_position = event.globalPos() - self.frameGeometry().topLeft()
+            # 范围判定用
+            self.mouse_pos = event.globalPos()
+            self.window_pos = self.pos()
             event.accept()
 
     def mouseMoveEvent(self, event):
+        global app
         if event.buttons() == Qt.LeftButton and self.drag_position is not None:
             self.mouse_flag = False
-            self.move(event.globalPos() - self.drag_position)
+            # 根据四周有无屏幕，哪些方向的拖动时允许的
+            screens = app.screens()
+            # 首先判断焦点屏幕
+            # 判断激活的屏幕的序号
+            for index, screen in enumerate(screens):
+                screen_geometry = screen.geometry()
+                x, y, width, height = screen_geometry.x(), screen_geometry.y(), screen_geometry.width(), screen_geometry.height()
+                scale_factor = screen.devicePixelRatio()
+                cursor_pos = QCursor.pos()
+                # 判断鼠标在不在该屏幕内
+                if x<=cursor_pos.x()<x+width*scale_factor and y<=cursor_pos.y()<y+height*scale_factor:
+                    break
+
+            # print("激活屏幕为：",index)
+
+            # 将焦点屏幕从screens列表取出
+            focus_screen = screens.pop(index)
+            # 获取焦点屏幕的参数
+            f_screen_geometry = focus_screen.geometry()
+            f_x, f_y, f_width, f_height = f_screen_geometry.x(), f_screen_geometry.y(), f_screen_geometry.width(), f_screen_geometry.height()
+            f_scale_factor = focus_screen.devicePixelRatio()
+            # 考虑缩放后要四舍五入，系统问题，不一定是整数
+            f_xrb = round(f_x+f_width*f_scale_factor)
+            f_yrb = round(f_y+f_height*f_scale_factor)
+
+            # 对新位置进行范围限制,如果拖动到另一块屏幕，则会改变焦点屏幕从而直接跳到另一屏幕，所以不需要进行上下左右有无屏幕的判断了
+            max_x = focus_screen.geometry().right() - self.width()
+            max_y = focus_screen.geometry().bottom() - self.height()
+
+            diff = event.globalPos() - self.mouse_pos
+            new_pos = self.window_pos + diff
+
+            if new_pos.x() < focus_screen.geometry().left():
+                new_pos.setX(focus_screen.geometry().left())
+            elif new_pos.x() > max_x:
+                new_pos.setX(max_x)
+
+            if new_pos.y() < focus_screen.geometry().top():
+                new_pos.setY(focus_screen.geometry().top())
+            elif new_pos.y() > max_y:
+                new_pos.setY(max_y)
+            
+            self.move(new_pos)
             event.accept()
 
     def mouseReleaseEvent(self, event):
@@ -469,21 +515,67 @@ class WindowB(QWidget):
     '''
     鼠标事件
     '''
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.drag_position = None
+            event.accept()
+
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             self.mouse_flag = True
             self.drag_position = event.globalPos() - self.frameGeometry().topLeft()
+            # 范围判定用
+            self.mouse_pos = event.globalPos()
+            self.window_pos = self.pos()
             event.accept()
 
     def mouseMoveEvent(self, event):
+        global app
         if event.buttons() == Qt.LeftButton and self.drag_position is not None:
             self.mouse_flag = False
-            self.move(event.globalPos() - self.drag_position)
-            event.accept()
+            # 根据四周有无屏幕，哪些方向的拖动时允许的
+            screens = app.screens()
+            # 首先判断焦点屏幕
+            # 判断激活的屏幕的序号
+            for index, screen in enumerate(screens):
+                screen_geometry = screen.geometry()
+                x, y, width, height = screen_geometry.x(), screen_geometry.y(), screen_geometry.width(), screen_geometry.height()
+                scale_factor = screen.devicePixelRatio()
+                cursor_pos = QCursor.pos()
+                # 判断鼠标在不在该屏幕内
+                if x<=cursor_pos.x()<x+width*scale_factor and y<=cursor_pos.y()<y+height*scale_factor:
+                    break
 
-    def mouseReleaseEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.drag_position = None
+            # print("激活屏幕为：",index)
+
+            # 将焦点屏幕从screens列表取出
+            focus_screen = screens.pop(index)
+            # 获取焦点屏幕的参数
+            f_screen_geometry = focus_screen.geometry()
+            f_x, f_y, f_width, f_height = f_screen_geometry.x(), f_screen_geometry.y(), f_screen_geometry.width(), f_screen_geometry.height()
+            f_scale_factor = focus_screen.devicePixelRatio()
+            # 考虑缩放后要四舍五入，系统问题，不一定是整数
+            f_xrb = round(f_x+f_width*f_scale_factor)
+            f_yrb = round(f_y+f_height*f_scale_factor)
+
+            # 对新位置进行范围限制,如果拖动到另一块屏幕，则会改变焦点屏幕从而直接跳到另一屏幕，所以不需要进行上下左右有无屏幕的判断了
+            max_x = focus_screen.geometry().right() - self.width()
+            max_y = focus_screen.geometry().bottom() - self.height()
+
+            diff = event.globalPos() - self.mouse_pos
+            new_pos = self.window_pos + diff
+
+            if new_pos.x() < focus_screen.geometry().left():
+                new_pos.setX(focus_screen.geometry().left())
+            elif new_pos.x() > max_x:
+                new_pos.setX(max_x)
+
+            if new_pos.y() < focus_screen.geometry().top():
+                new_pos.setY(focus_screen.geometry().top())
+            elif new_pos.y() > max_y:
+                new_pos.setY(max_y)
+            
+            self.move(new_pos)
             event.accept()
 
     '''
