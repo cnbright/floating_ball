@@ -39,13 +39,9 @@ def get_system_volume():
         IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
     volume = cast(interface, POINTER(IAudioEndpointVolume))
 
-    current_volume = 0
-
     # 获取系统音量
-    try:
-        current_volume = volume.GetMasterVolumeLevelScalar()
-    except:
-        pass
+    current_volume = volume.GetMasterVolumeLevelScalar()
+
     # 将音量转换为百分比
     current_volume_percentage = round(current_volume * 100)
     return current_volume_percentage
@@ -57,15 +53,6 @@ def set_system_volume(vol):
         IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
     volume = cast(interface, POINTER(IAudioEndpointVolume))
     volume.SetMasterVolumeLevelScalar(vol/100, None)
-
-# 渐变透明度
-def anime_WindowOpacity(window):
-    window.setWindowOpacity(0)
-    n = 0.0
-    for i in range(15):
-        time.sleep(0.01)
-        n+=0.06
-        window.setWindowOpacity(n)
 
 
 # 获得焦点屏幕
@@ -434,8 +421,7 @@ class WindowA(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_ShowWithoutActivating)
         self.setGeometry(100, 100, window_a_width, window_a_height)
-        self.setWindowOpacity(0.9)
-        
+
         # 窗口B
         self.window_b = WindowB()
 
@@ -567,8 +553,6 @@ class WindowA(QWidget):
 
 
                 self.window_b.setGeometry(QRect(n_pos[0],n_pos[1],window_b_width, window_b_height))
-
-                threading.Thread(target=anime_WindowOpacity, args=(self.window_b,)).start()
         
                 self.window_b.show()
             else:
@@ -612,6 +596,8 @@ class WindowA(QWidget):
         painter.setBrush(brush3)
         painter.drawEllipse(center1[0] - radius3, center1[1] - radius3, 2 * radius3, 2 * radius3)
 
+        self.setWindowOpacity(0.9)
+
 
 
 class WindowB(QWidget):
@@ -623,7 +609,6 @@ class WindowB(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_ShowWithoutActivating)
         self.setGeometry(200, 200, window_b_width, window_b_height)
-        self.setWindowOpacity(0.9)
 
         self.add_buttons()
 
@@ -856,6 +841,7 @@ class WindowB(QWidget):
         painter.setClipPath(path)
         painter.fillRect(self.rect(), QBrush(QColor("#28323B")))
 
+        self.setWindowOpacity(0.9)
 
     '''
     按钮槽函数
@@ -870,9 +856,6 @@ class WindowB(QWidget):
         self.window_a.setGeometry(self.pos().x() + self.width()/2 - self.window_a.width()/2,
                                      self.pos().y() + self.height()/2 - self.window_a.height()/2,
                                      window_a_width, window_a_height)
-        
-        threading.Thread(target=anime_WindowOpacity, args=(self.window_a,)).start()
-
         self.window_a.show()
 
     def mission_view(self):
