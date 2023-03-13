@@ -106,6 +106,10 @@ class CircularSlider(QSlider):
         # 每次鼠标释放事件后重新置为2
         self.mouse_event_flag = 2
 
+        # 鼠标点击后是否拖动标志位，True则未发生拖动
+        self.mouse_drag_flag = False
+
+
     def timer_update_volume(self):
         # 转换当前音量到角度
         if get_system_volume()/100*270<100/6:
@@ -187,6 +191,7 @@ class CircularSlider(QSlider):
                 
 
     def mouseMoveEvent(self, event):
+        self.mouse_drag_flag = True
         if self.mouse_event_flag == 1:
             event.ignore()
             self.parent().mousePressEvent(event)
@@ -202,9 +207,12 @@ class CircularSlider(QSlider):
         if self.mouse_event_flag == 1:
             event.ignore()
             self.parent().mousePressEvent(event)
+            if not self.mouse_drag_flag:
+                pyautogui.press('playpause')
         else:
             pass
         self.mouse_event_flag = 2
+        self.mouse_drag_flag = False
 
     def angle(self, event):
         self.last_angle = self.value()
@@ -215,7 +223,6 @@ class CircularSlider(QSlider):
         if 315>ag>225:
             ag=self.last_angle
         return ag
-
 
 
 class WindowA(QWidget):
@@ -457,13 +464,21 @@ class WindowB(QWidget):
         self.widget1.layout().addWidget(self.button1, 0, 0)
         self.button1.setStyleSheet(button_style)
 
-        self.button4 = QPushButton(self)
-        self.button4.setIcon(QIcon("./images/flash.png"))
-        self.button4.setIconSize(QSize(50, 50))
-        self.button4.setFixedSize(50, 50)
-        self.button4.clicked.connect(self.open_quicker)
-        self.widget1.layout().addWidget(self.button4, 0, 1)
-        self.button4.setStyleSheet(button_style)
+        self.button2 = QPushButton(self)
+        self.button2.setIcon(QIcon("./images/flash.png"))
+        self.button2.setIconSize(QSize(50, 50))
+        self.button2.setFixedSize(50, 50)
+        self.button2.clicked.connect(self.open_quicker)
+        self.widget1.layout().addWidget(self.button2, 0, 1)
+        self.button2.setStyleSheet(button_style)
+
+        self.button3 = QPushButton(self)
+        self.button3.setIcon(QIcon("./images/screen.png"))
+        self.button3.setIconSize(QSize(50, 50))
+        self.button3.setFixedSize(50, 50)
+        self.button3.clicked.connect(self.change_screen)
+        self.widget1.layout().addWidget(self.button3, 0, 2)
+        self.button3.setStyleSheet(button_style)
 
 
         self.button5 = QPushButton(self)
@@ -471,7 +486,7 @@ class WindowB(QWidget):
         self.button5.setIconSize(QSize(50, 50))
         self.button5.setFixedSize(50, 50)
         self.button5.clicked.connect(self.switch_to_window_a)
-        self.widget1.layout().addWidget(self.button5, 0 ,2)
+        self.widget1.layout().addWidget(self.button5, 0 ,3)
         self.button5.setStyleSheet(button_style)
 
         self.button6 = QPushButton(self)
@@ -616,7 +631,6 @@ class WindowB(QWidget):
         pyautogui.hotkey('ctrl', 'shift', 'esc')
 
     def open_quicker(self):
-
         pyautogui.middleClick(x=self.pos().x() + self.width()/2, y=self.pos().y() + self.height()/2)
         # 查找窗口句柄
         hwnd = win32gui.FindWindow(0, "Quicker面板窗口")
@@ -637,6 +651,42 @@ class WindowB(QWidget):
 
             self.move(left+width/2-self.width()/2, top+height/2-self.height()/2)
             self.show()
+
+    def change_screen(self):
+        global app
+        # 首先判断焦点屏幕
+        screens = app.screens()
+        # 判断激活的屏幕的序号
+        for index, screen in enumerate(screens):
+            screen_geometry = screen.geometry()
+            x, y, width, height = screen_geometry.x(), screen_geometry.y(), screen_geometry.width(), screen_geometry.height()
+            scale_factor = screen.devicePixelRatio()
+            cursor_pos = QCursor.pos()
+            # 判断鼠标在不在该屏幕内
+            if x<=cursor_pos.x()<x+width*scale_factor and y<=cursor_pos.y()<y+height*scale_factor:
+                break
+
+        num_screens = len(screens)-1
+
+        if index+1 > num_screens:
+            index = 0
+        else:
+            index += 1
+
+        # 将下一块屏幕取出
+        to_screen = screens.pop(index)
+
+        # 获取焦点屏幕的参数
+        to_screen_geometry = to_screen.geometry()
+        f_x, f_y, f_width, f_height = to_screen_geometry.x(), to_screen_geometry.y(), to_screen_geometry.width(), to_screen_geometry.height()
+        f_scale_factor = to_screen.devicePixelRatio()
+        # 考虑缩放后要四舍五入，系统问题，不一定是整数
+        f_xrb = round(f_x+f_width*f_scale_factor)
+        f_yrb = round(f_y+f_height*f_scale_factor)
+
+        self.move((f_x+f_xrb)/2-self.width()/2, (f_y+f_yrb)/2-self.height()/2)
+
+
             
     def back_desktop(self):
         pyautogui.hotkey('winleft', 'd')

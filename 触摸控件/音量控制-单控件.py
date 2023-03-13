@@ -10,6 +10,7 @@ from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 from math import *
 
+import pyautogui
 
 from ctypes import POINTER, cast
 from comtypes import CLSCTX_ALL
@@ -89,6 +90,10 @@ class CircularSlider(QSlider):
         # 上一次鼠标事件发生在音量调节范围外，则为1
         # 每次鼠标释放事件后重新置为2
         self.mouse_event_flag = 2
+
+        # 鼠标点击后是否拖动标志位，True则未发生拖动
+        self.mouse_drag_flag = False
+
 
     def timer_update_volume(self):
         # 转换当前音量到角度
@@ -171,6 +176,7 @@ class CircularSlider(QSlider):
                 
 
     def mouseMoveEvent(self, event):
+        self.mouse_drag_flag = True
         if self.mouse_event_flag == 1:
             event.ignore()
             self.parent().mousePressEvent(event)
@@ -186,9 +192,12 @@ class CircularSlider(QSlider):
         if self.mouse_event_flag == 1:
             event.ignore()
             self.parent().mousePressEvent(event)
+            if not self.mouse_drag_flag:
+                pyautogui.press('playpause')
         else:
             pass
         self.mouse_event_flag = 2
+        self.mouse_drag_flag = False
 
     def angle(self, event):
         self.last_angle = self.value()
