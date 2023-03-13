@@ -33,6 +33,7 @@ from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 import win32gui
 import win32con
 import time
+import copy
 
 def get_system_volume():
     # 获取系统默认的音频设备
@@ -41,9 +42,13 @@ def get_system_volume():
         IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
     volume = cast(interface, POINTER(IAudioEndpointVolume))
 
-    # 获取系统音量
-    current_volume = volume.GetMasterVolumeLevelScalar()
+    current_volume = 0
 
+    # 获取系统音量
+    try:
+        current_volume = volume.GetMasterVolumeLevelScalar()
+    except:
+        pass
     # 将音量转换为百分比
     current_volume_percentage = round(current_volume * 100)
     return current_volume_percentage
@@ -56,6 +61,200 @@ def set_system_volume(vol):
     volume = cast(interface, POINTER(IAudioEndpointVolume))
     volume.SetMasterVolumeLevelScalar(vol/100, None)
 
+# 渐变透明度
+def anime_WindowOpacity(window):
+    window.setWindowOpacity(0)
+    n = 0.0
+    for i in range(15):
+        time.sleep(0.01)
+        n+=0.06
+        window.setWindowOpacity(n)
+
+
+# 获得焦点屏幕
+def get_focus_screen():
+    global app
+
+    # 根据四周有无屏幕，哪些方向的拖动时允许的
+    screens = app.screens()
+    # 首先判断焦点屏幕
+    # 判断激活的屏幕的序号
+    for index, screen in enumerate(screens):
+        screen_geometry = screen.geometry()
+        x, y, width, height = screen_geometry.x(), screen_geometry.y(), screen_geometry.width(), screen_geometry.height()
+        scale_factor = screen.devicePixelRatio()
+        cursor_pos = QCursor.pos()
+        # 判断鼠标在不在该屏幕内
+        if x<=cursor_pos.x()<x+width*scale_factor and y<=cursor_pos.y()<y+height*scale_factor:
+            break
+
+    # print("激活屏幕为：",index)
+
+    # 将焦点屏幕从screens列表取出
+    focus_screen = screens.pop(index)
+
+    return focus_screen
+
+# 自定义滚动控件
+class MyScrollArea(QScrollArea):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        
+    def wheelEvent(self, event):
+        # 忽略滚轮事件
+        event.accept()  
+# 自定义按钮
+class MyQPushButton(QPushButton):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.mouse_drag_flag = False
+        self._drag_start_pos = None
+
+
+    def mousePressEvent(self, event):
+        self.mouse_drag_flag = False
+        event.ignore()
+        self.setDown(True)
+
+    def mouseMoveEvent(self, event):
+        self.mouse_drag_flag = True
+        event.ignore()
+        # super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if self.mouse_drag_flag:
+            event.ignore()
+            self.setDown(False)
+        else:
+            self.click()
+        
+# 滚动区域控件
+class ScrollableButtonGrid(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        # 创建一个网格布局，用于添加按钮
+        self.g_layout = QGridLayout()
+        self.g_layout.setSpacing(20)
+
+        # 创建一个滚动区域，将水平布局添加到其中
+        self.scroll_area = MyScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll_area.setWidget(QWidget())
+        self.scroll_area.widget().setLayout(self.g_layout)
+
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll_area.setStyleSheet("background-color: transparent;")
+
+        # 设定初始位置
+        self.scroll_area.horizontalScrollBar().setValue(0)
+
+        # 创建一个垂直布局，将滚动区域添加到其中
+        self.v_layout = QVBoxLayout()
+        self.v_layout.addWidget(self.scroll_area)
+
+        # 将垂直布局设置为主窗口的布局
+        self.setLayout(self.v_layout)
+
+        self.mouse_pos = None
+
+    def wheelEvent(self, event):
+        # 忽略滚轮事件
+        event.accept()
+
+    def mousePressEvent(self, event):
+        # 记录鼠标按下时的位置
+        self.mouse_pos = QCursor.pos()
+
+    def mouseMoveEvent(self, event):
+        if self.mouse_pos is not None:
+            # 计算鼠标拖动的距离
+            delta = QCursor.pos() - self.mouse_pos
+
+            # 计算滚动条应该滚动到的位置
+            scrollbar = self.scroll_area.horizontalScrollBar()
+            value = scrollbar.value() - delta.x()
+
+            # 设置滚动条的位置
+            scrollbar.setValue(value)
+
+            # 更新鼠标位置
+            self.mouse_pos = QCursor.pos()
+
+    def mouseReleaseEvent(self, event):
+        # 清除已经记录的鼠标位置
+        self.mouse_pos = None
+
+        # 保证位置是60的整数倍
+        scrollbar = self.scroll_area.horizontalScrollBar()
+        value = scrollbar.value()
+        scrollbar.setValue(value)
+        scrollbar.setValue(round(value/70)*70)
+
+
+    def __init__(self):
+        super().__init__()
+
+        # self.setStyleSheet('''QScrollArea {border: none;}''')
+        # self.setStyleSheet("background-color: transparent;")
+
+        # 创建一个网格布局，用于添加按钮
+        self.g_layout = QGridLayout()
+        self.g_layout.setSpacing(20)
+
+        # 创建一个滚动区域，将水平布局添加到其中
+        self.scroll_area = MyScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll_area.setWidget(QWidget())
+        self.scroll_area.widget().setLayout(self.g_layout)
+
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll_area.setStyleSheet("background-color: transparent;")
+
+        # 创建一个垂直布局，将滚动区域添加到其中
+        self.v_layout = QVBoxLayout()
+        self.v_layout.addWidget(self.scroll_area)
+
+        # 将垂直布局设置为主窗口的布局
+        self.setLayout(self.v_layout)
+
+        self.mouse_pos = None
+
+    def wheelEvent(self, event):
+        # 忽略滚轮事件
+        event.accept()
+
+    def mousePressEvent(self, event):
+        # 记录鼠标按下时的位置
+        self.mouse_pos = QCursor.pos()
+
+    def mouseMoveEvent(self, event):
+        if self.mouse_pos is not None:
+            # 计算鼠标拖动的距离
+            delta = QCursor.pos() - self.mouse_pos
+
+            # 计算滚动条应该滚动到的位置
+            scrollbar = self.scroll_area.horizontalScrollBar()
+            value = scrollbar.value() - delta.x()
+
+            # 设置滚动条的位置
+            scrollbar.setValue(value)
+
+            # 更新鼠标位置
+            self.mouse_pos = QCursor.pos()
+
+    def mouseReleaseEvent(self, event):
+        # 清除已经记录的鼠标位置
+        self.mouse_pos = None
+        # 保证位置是60的整数倍
+        scrollbar = self.scroll_area.horizontalScrollBar()
+        value = scrollbar.value()
+        scrollbar.setValue(value)
+        scrollbar.setValue(round(value/70)*70)
 
 # Slider类
 class CircularSlider(QSlider):
@@ -238,7 +437,8 @@ class WindowA(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_ShowWithoutActivating)
         self.setGeometry(100, 100, window_a_width, window_a_height)
-
+        self.setWindowOpacity(0.9)
+        
         # 窗口B
         self.window_b = WindowB()
 
@@ -301,23 +501,8 @@ class WindowA(QWidget):
         global app
         if event.buttons() == Qt.LeftButton and self.drag_position is not None:
             self.mouse_flag = False
-            # 根据四周有无屏幕，哪些方向的拖动时允许的
-            screens = app.screens()
-            # 首先判断焦点屏幕
-            # 判断激活的屏幕的序号
-            for index, screen in enumerate(screens):
-                screen_geometry = screen.geometry()
-                x, y, width, height = screen_geometry.x(), screen_geometry.y(), screen_geometry.width(), screen_geometry.height()
-                scale_factor = screen.devicePixelRatio()
-                cursor_pos = QCursor.pos()
-                # 判断鼠标在不在该屏幕内
-                if x<=cursor_pos.x()<x+width*scale_factor and y<=cursor_pos.y()<y+height*scale_factor:
-                    break
 
-            # print("激活屏幕为：",index)
-
-            # 将焦点屏幕从screens列表取出
-            focus_screen = screens.pop(index)
+            focus_screen = get_focus_screen()
             # 获取焦点屏幕的参数
             f_screen_geometry = focus_screen.geometry()
             f_x, f_y, f_width, f_height = f_screen_geometry.x(), f_screen_geometry.y(), f_screen_geometry.width(), f_screen_geometry.height()
@@ -353,9 +538,40 @@ class WindowA(QWidget):
             if self.mouse_flag:
                 self.tray_flag = False
                 self.hide()
-                self.window_b.setGeometry(QRect(self.pos().x() + self.width()/2 - self.window_b.width()/2,
-                                     self.pos().y() + self.height()/2 - self.window_b.height()/2,
-                                     window_b_width, window_b_height))
+
+                focus_screen = get_focus_screen()
+                f_screen_geometry = focus_screen.geometry()
+
+                # 获取焦点屏幕的参数
+                f_screen_geometry = focus_screen.geometry()
+                f_x, f_y, f_width, f_height = f_screen_geometry.x(), f_screen_geometry.y(), f_screen_geometry.width(), f_screen_geometry.height()
+                f_scale_factor = focus_screen.devicePixelRatio()
+                # 考虑缩放后要四舍五入，系统问题，不一定是整数
+                f_xrb = round(f_x+f_width*f_scale_factor)
+                f_yrb = round(f_y+f_height*f_scale_factor)
+
+                # 约束新生成的windwosB的位置，防止windowB部分直接生成在不可见区域
+                max_x = focus_screen.geometry().right() - self.width()
+                max_y = focus_screen.geometry().bottom() - self.height()
+
+                n_pos = [self.pos().x() + self.width()/2 - self.window_b.width()/2,
+                         self.pos().y() + self.height()/2 - self.window_b.height()/2]
+                
+
+                if n_pos[0] < focus_screen.geometry().left():
+                    n_pos[0] = focus_screen.geometry().left()
+                elif n_pos[0]+window_b_width > max_x:
+                    n_pos[0] = max_x - window_b_width
+
+                if n_pos[1] < focus_screen.geometry().top():
+                    n_pos[1] = focus_screen.geometry().top()
+                elif n_pos[1]+window_b_height > max_y:
+                    n_pos[1] = max_y - window_b_height
+
+
+                self.window_b.setGeometry(QRect(n_pos[0],n_pos[1],window_b_width, window_b_height))
+
+                threading.Thread(target=anime_WindowOpacity, args=(self.window_b,)).start()
         
                 self.window_b.show()
             else:
@@ -399,8 +615,6 @@ class WindowA(QWidget):
         painter.setBrush(brush3)
         painter.drawEllipse(center1[0] - radius3, center1[1] - radius3, 2 * radius3, 2 * radius3)
 
-        self.setWindowOpacity(0.9)
-
 
 
 class WindowB(QWidget):
@@ -412,6 +626,7 @@ class WindowB(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_ShowWithoutActivating)
         self.setGeometry(200, 200, window_b_width, window_b_height)
+        self.setWindowOpacity(0.9)
 
         self.add_buttons()
 
@@ -427,19 +642,19 @@ class WindowB(QWidget):
         # 将布局应用到父控件
         self.setLayout(layout)
 
-        self.widget1 = QWidget()
-        self.widget1.setLayout(QGridLayout())
+        self.scroll1 = ScrollableButtonGrid()
+        # self.scroll1.resize(300,20)
 
-        self.widget2 = QWidget()
-        self.widget2.setLayout(QGridLayout())
+        self.scroll2 = ScrollableButtonGrid()
+        # self.scroll2.resize(300,20)
 
-        self.layout().addWidget(self.widget1)
+        self.layout().addWidget(self.scroll1)
 
         self.slider = CircularSlider()
         self.slider.setFixedSize(300, 300)
         self.layout().addWidget(self.slider)
 
-        self.layout().addWidget(self.widget2)
+        self.layout().addWidget(self.scroll2)
 
         # 按钮样式
         button_style = '''
@@ -459,70 +674,118 @@ class WindowB(QWidget):
         }
         '''
 
-        self.button1 = QPushButton(self)
+        self.button1 = MyQPushButton(self)
         self.button1.setIcon(QIcon(os.path.join(data_dir, 'mission.png')))
         self.button1.setIconSize(QSize(50, 50))
         self.button1.setFixedSize(50, 50)
         self.button1.clicked.connect(self.mission_view)
-        self.widget1.layout().addWidget(self.button1, 0, 0)
+        self.scroll1.g_layout.addWidget(self.button1, 0, 0)
         self.button1.setStyleSheet(button_style)
 
-        self.button2 = QPushButton(self)
+        self.button2 = MyQPushButton(self)
         self.button2.setIcon(QIcon(os.path.join(data_dir, 'flash.png')))
         self.button2.setIconSize(QSize(50, 50))
         self.button2.setFixedSize(50, 50)
         self.button2.clicked.connect(self.open_quicker)
-        self.widget1.layout().addWidget(self.button2, 0, 1)
+        self.scroll1.g_layout.addWidget(self.button2, 0, 1)
         self.button2.setStyleSheet(button_style)
 
-        self.button3 = QPushButton(self)
+        self.button3 = MyQPushButton(self)
         self.button3.setIcon(QIcon(os.path.join(data_dir, 'screen.png')))
         self.button3.setIconSize(QSize(50, 50))
         self.button3.setFixedSize(50, 50)
         self.button3.clicked.connect(self.change_screen)
-        self.widget1.layout().addWidget(self.button3, 0, 2)
+        self.scroll1.g_layout.addWidget(self.button3, 0, 2)
         self.button3.setStyleSheet(button_style)
 
 
-        self.button5 = QPushButton(self)
+        self.button5 = MyQPushButton(self)
         self.button5.setIcon(QIcon(os.path.join(data_dir, 'closemenu.png')))
         self.button5.setIconSize(QSize(50, 50))
         self.button5.setFixedSize(50, 50)
         self.button5.clicked.connect(self.switch_to_window_a)
-        self.widget1.layout().addWidget(self.button5, 0 ,3)
+        self.scroll1.g_layout.addWidget(self.button5, 0 ,3)
         self.button5.setStyleSheet(button_style)
 
-        self.button6 = QPushButton(self)
+        self.button52 = MyQPushButton(self)
+        self.button52.setIcon(QIcon(os.path.join(data_dir, 'closemenu.png')))
+        self.button52.setIconSize(QSize(50, 50))
+        self.button52.setFixedSize(50, 50)
+        self.button52.clicked.connect(self.switch_to_window_a)
+        self.scroll1.g_layout.addWidget(self.button52, 0 ,4)
+        self.button52.setStyleSheet(button_style)
+
+        self.button53 = MyQPushButton(self)
+        self.button53.setIcon(QIcon(os.path.join(data_dir, 'closemenu.png')))
+        self.button53.setIconSize(QSize(50, 50))
+        self.button53.setFixedSize(50, 50)
+        self.button53.clicked.connect(self.switch_to_window_a)
+        self.scroll1.g_layout.addWidget(self.button53, 0 ,5)
+        self.button53.setStyleSheet(button_style)
+
+        self.button54 = MyQPushButton(self)
+        self.button54.setIcon(QIcon(os.path.join(data_dir, 'closemenu.png')))
+        self.button54.setIconSize(QSize(50, 50))
+        self.button54.setFixedSize(50, 50)
+        self.button54.clicked.connect(self.switch_to_window_a)
+        self.scroll1.g_layout.addWidget(self.button54, 0 ,6)
+        self.button54.setStyleSheet(button_style)
+
+        self.button55 = MyQPushButton(self)
+        self.button55.setIcon(QIcon(os.path.join(data_dir, 'closemenu.png')))
+        self.button55.setIconSize(QSize(50, 50))
+        self.button55.setFixedSize(50, 50)
+        self.button55.clicked.connect(self.switch_to_window_a)
+        self.scroll1.g_layout.addWidget(self.button55, 0 ,7)
+        self.button55.setStyleSheet(button_style)
+
+        self.button6 = MyQPushButton(self)
         self.button6.setIcon(QIcon(os.path.join(data_dir, 'desktop.png')))
         self.button6.setIconSize(QSize(50, 50))
         self.button6.setFixedSize(50, 50)
         self.button6.clicked.connect(self.back_desktop)
-        self.widget2.layout().addWidget(self.button6, 0, 0)
+        self.scroll2.g_layout.addWidget(self.button6, 0, 0)
         self.button6.setStyleSheet(button_style)
 
-        self.button7 = QPushButton(self)
+        self.button7 = MyQPushButton(self)
         self.button7.setIcon(QIcon(os.path.join(data_dir, 'taskmgr.png')))
         self.button7.setIconSize(QSize(50, 50))
         self.button7.setFixedSize(50, 50)
         self.button7.clicked.connect(self.open_taskmgr)
-        self.widget2.layout().addWidget(self.button7, 0, 1)
+        self.scroll2.g_layout.addWidget(self.button7, 0, 1)
         self.button7.setStyleSheet(button_style)
 
-        self.button8 = QPushButton(self)
+        self.button8 = MyQPushButton(self)
         self.button8.setIcon(QIcon(os.path.join(data_dir, 'utools.png')))
         self.button8.setIconSize(QSize(45, 45))
         self.button8.setFixedSize(50, 50)
         self.button8.clicked.connect(self.open_utools)
-        self.widget2.layout().addWidget(self.button8, 0, 2)
+        self.scroll2.g_layout.addWidget(self.button8, 0, 2)
         self.button8.setStyleSheet(button_style)
 
-        self.button9 = QPushButton(self)
+        self.button9 = MyQPushButton(self)
         self.button9.setIcon(QIcon(os.path.join(data_dir, 'screenshot.png')))
         self.button9.setIconSize(QSize(50, 50))
         self.button9.setFixedSize(50, 50)
         self.button9.clicked.connect(self.take_screenshot)
-        self.widget2.layout().addWidget(self.button9, 0, 3)
+        self.scroll2.g_layout.addWidget(self.button9, 0, 3)
         self.button9.setStyleSheet(button_style)
+
+        self.button91 = MyQPushButton(self)
+        self.button9.setIcon(QIcon(os.path.join(data_dir, 'screenshot.png')))
+        self.button91.setIconSize(QSize(50, 50))
+        self.button91.setFixedSize(50, 50)
+        self.button91.clicked.connect(self.take_screenshot)
+        self.scroll2.g_layout.addWidget(self.button91, 0, 4)
+        self.button91.setStyleSheet(button_style)
+
+        self.button92 = MyQPushButton(self)
+        self.button9.setIcon(QIcon(os.path.join(data_dir, 'screenshot.png')))
+        self.button92.setIconSize(QSize(50, 50))
+        self.button92.setFixedSize(50, 50)
+        self.button92.clicked.connect(self.take_screenshot)
+        self.scroll2.g_layout.addWidget(self.button92, 0, 5)
+        self.button92.setStyleSheet(button_style)
 
         # 设置布局为垂直居中对齐
         layout.setAlignment(Qt.AlignCenter)
@@ -551,23 +814,9 @@ class WindowB(QWidget):
         global app
         if event.buttons() == Qt.LeftButton and self.drag_position is not None:
             self.mouse_flag = False
-            # 根据四周有无屏幕，哪些方向的拖动时允许的
-            screens = app.screens()
-            # 首先判断焦点屏幕
-            # 判断激活的屏幕的序号
-            for index, screen in enumerate(screens):
-                screen_geometry = screen.geometry()
-                x, y, width, height = screen_geometry.x(), screen_geometry.y(), screen_geometry.width(), screen_geometry.height()
-                scale_factor = screen.devicePixelRatio()
-                cursor_pos = QCursor.pos()
-                # 判断鼠标在不在该屏幕内
-                if x<=cursor_pos.x()<x+width*scale_factor and y<=cursor_pos.y()<y+height*scale_factor:
-                    break
 
-            # print("激活屏幕为：",index)
-
-            # 将焦点屏幕从screens列表取出
-            focus_screen = screens.pop(index)
+            # 获取焦点屏幕
+            focus_screen = get_focus_screen()
             # 获取焦点屏幕的参数
             f_screen_geometry = focus_screen.geometry()
             f_x, f_y, f_width, f_height = f_screen_geometry.x(), f_screen_geometry.y(), f_screen_geometry.width(), f_screen_geometry.height()
@@ -610,7 +859,6 @@ class WindowB(QWidget):
         painter.setClipPath(path)
         painter.fillRect(self.rect(), QBrush(QColor("#28323B")))
 
-        self.setWindowOpacity(0.9)
 
     '''
     按钮槽函数
@@ -625,6 +873,9 @@ class WindowB(QWidget):
         self.window_a.setGeometry(self.pos().x() + self.width()/2 - self.window_a.width()/2,
                                      self.pos().y() + self.height()/2 - self.window_a.height()/2,
                                      window_a_width, window_a_height)
+        
+        threading.Thread(target=anime_WindowOpacity, args=(self.window_a,)).start()
+
         self.window_a.show()
 
     def mission_view(self):
