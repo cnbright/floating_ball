@@ -23,7 +23,7 @@ window_a_width = 120
 window_a_height = window_a_width
 
 window_b_width = 202
-window_b_height = window_b_width
+window_b_height = 498
 
 from math import *
 from ctypes import POINTER, cast
@@ -444,6 +444,8 @@ class WindowA(QWidget):
         
         # 窗口B
         self.window_b = WindowB()
+        self.window_b.resize(window_b_width, window_b_height)
+        
 
         # 系统托盘
         self.tray_icon = QSystemTrayIcon(self)
@@ -557,8 +559,8 @@ class WindowA(QWidget):
                 max_x = focus_screen.geometry().right() - self.width()
                 max_y = focus_screen.geometry().bottom() - self.height()
 
-                n_pos = [self.pos().x() + self.width()/2 - self.window_b.width()/2,
-                         self.pos().y() + self.height()/2 - self.window_b.height()/2]
+                n_pos = [self.pos().x() + self.width()/2 - window_b_width/2,
+                         self.pos().y() + self.height()/2 - window_b_height/2]
                 
 
                 if n_pos[0] < focus_screen.geometry().left():
@@ -569,7 +571,7 @@ class WindowA(QWidget):
                 if n_pos[1] < focus_screen.geometry().top():
                     n_pos[1] = focus_screen.geometry().top()
                 elif n_pos[1]+window_b_height > max_y:
-                    n_pos[1] = max_y - window_b_height
+                    n_pos[1] = max_y + self.height() - window_b_height
 
 
                 self.window_b.setGeometry(QRect(n_pos[0],n_pos[1],window_b_width, window_b_height))
@@ -815,6 +817,7 @@ class WindowB(QWidget):
 
     def mouseMoveEvent(self, event):
         global app
+        # print(self.width(),self.height())
         if event.buttons() == Qt.LeftButton and self.drag_position is not None:
             self.mouse_flag = False
 
@@ -938,8 +941,11 @@ class WindowB(QWidget):
         f_x, f_y, f_width, f_height = to_screen_geometry.x(), to_screen_geometry.y(), to_screen_geometry.width(), to_screen_geometry.height()
         f_scale_factor = to_screen.devicePixelRatio()
         # 考虑缩放后要四舍五入，系统问题，不一定是整数
-        f_xrb = round(f_x+f_width*f_scale_factor)
-        f_yrb = round(f_y+f_height*f_scale_factor)
+        # f_xrb = round(f_x+f_width*f_scale_factor)
+        # f_yrb = round(f_y+f_height*f_scale_factor)
+        f_xrb = round(f_x+f_width)
+        f_yrb = round(f_y+f_height)
+
 
         self.move((f_x+f_xrb)/2-self.width()/2, (f_y+f_yrb)/2-self.height()/2)
 

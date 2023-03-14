@@ -44,6 +44,7 @@ for screen in screens:
     screen_geometry = screen.geometry()
     x, y, width, height = screen_geometry.x(), screen_geometry.y(), screen_geometry.width(), screen_geometry.height()
     scale_factor = screen.devicePixelRatio()
+    print(scale_factor)
 
     # 判读屏幕左上角
     if x==f_xrb:

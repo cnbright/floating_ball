@@ -32,6 +32,7 @@ from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
 import win32gui
 import win32con
+import win32api
 import time
 import copy
 
@@ -70,6 +71,14 @@ def anime_WindowOpacity(window):
         n+=0.06
         window.setWindowOpacity(n)
 
+# devicePixelRatio不能正确获得缩放系数，因此重新计算缩放系数
+def get_devicePixelRatio(screen):
+    logicalDpi = screen.logicalDotsPerInch()
+    physicalDpi = screen.physicalDotsPerInch()
+
+    # 计算缩放比例
+    devicePixelRatio = logicalDpi / physicalDpi
+    return devicePixelRatio
 
 # 获得焦点屏幕
 def get_focus_screen():
@@ -82,7 +91,8 @@ def get_focus_screen():
     for index, screen in enumerate(screens):
         screen_geometry = screen.geometry()
         x, y, width, height = screen_geometry.x(), screen_geometry.y(), screen_geometry.width(), screen_geometry.height()
-        scale_factor = screen.devicePixelRatio()
+        scale_factor = get_devicePixelRatio(screen)
+        # scale_factor = screen.devicePixelRatio()
         cursor_pos = QCursor.pos()
         # 判断鼠标在不在该屏幕内
         if x<=cursor_pos.x()<x+width*scale_factor and y<=cursor_pos.y()<y+height*scale_factor:
@@ -511,7 +521,8 @@ class WindowA(QWidget):
             # 获取焦点屏幕的参数
             f_screen_geometry = focus_screen.geometry()
             f_x, f_y, f_width, f_height = f_screen_geometry.x(), f_screen_geometry.y(), f_screen_geometry.width(), f_screen_geometry.height()
-            f_scale_factor = focus_screen.devicePixelRatio()
+            f_scale_factor = get_devicePixelRatio(focus_screen)
+            # f_scale_factor = focus_screen.devicePixelRatio()
             # 考虑缩放后要四舍五入，系统问题，不一定是整数
             f_xrb = round(f_x+f_width*f_scale_factor)
             f_yrb = round(f_y+f_height*f_scale_factor)
@@ -550,7 +561,8 @@ class WindowA(QWidget):
                 # 获取焦点屏幕的参数
                 f_screen_geometry = focus_screen.geometry()
                 f_x, f_y, f_width, f_height = f_screen_geometry.x(), f_screen_geometry.y(), f_screen_geometry.width(), f_screen_geometry.height()
-                f_scale_factor = focus_screen.devicePixelRatio()
+                f_scale_factor = get_devicePixelRatio(focus_screen)
+                # f_scale_factor = focus_screen.devicePixelRatio()
                 # 考虑缩放后要四舍五入，系统问题，不一定是整数
                 f_xrb = round(f_x+f_width*f_scale_factor)
                 f_yrb = round(f_y+f_height*f_scale_factor)
@@ -559,8 +571,8 @@ class WindowA(QWidget):
                 max_x = focus_screen.geometry().right() - self.width()
                 max_y = focus_screen.geometry().bottom() - self.height()
 
-                n_pos = [self.pos().x() + self.width()/2 - window_b_width/2,
-                         self.pos().y() + self.height()/2 - window_b_height/2]
+                n_pos = [self.geometry().center().x() - self.window_b.width()/2,
+                         self.geometry().center().y() - self.window_b.height()/2]
                 
 
                 if n_pos[0] < focus_screen.geometry().left():
@@ -572,7 +584,8 @@ class WindowA(QWidget):
                     n_pos[1] = focus_screen.geometry().top()
                 elif n_pos[1]+window_b_height > max_y:
                     n_pos[1] = max_y + self.height() - window_b_height
-
+                
+                
 
                 self.window_b.setGeometry(QRect(n_pos[0],n_pos[1],window_b_width, window_b_height))
 
@@ -876,10 +889,11 @@ class WindowB(QWidget):
         self.hide()
         self.window_a = window_a
         self.window_a.tray_flag = True
-        self.window_a.setGeometry(self.pos().x() + self.width()/2 - self.window_a.width()/2,
-                                     self.pos().y() + self.height()/2 - self.window_a.height()/2,
-                                     window_a_width, window_a_height)
         
+        self.window_a.setGeometry(self.geometry().center().x() - self.window_a.width()/2,
+                                     self.geometry().center().y() - self.window_a.height()/2,
+                                     window_a_width, window_a_height)
+
         threading.Thread(target=anime_WindowOpacity, args=(self.window_a,)).start()
 
         self.window_a.show()
@@ -891,26 +905,59 @@ class WindowB(QWidget):
         pyautogui.hotkey('ctrl', 'shift', 'esc')
 
     def open_quicker(self):
-        pyautogui.middleClick(x=self.pos().x() + self.width()/2, y=self.pos().y() + self.height()/2)
-        # 查找窗口句柄
         hwnd = win32gui.FindWindow(0, "Quicker面板窗口")
-
-        win32gui.ShowWindow(hwnd,win32con.SW_SHOW)
-        # 判断窗口是否可见
-        time.sleep(0.5)
-        if win32gui.IsWindowVisible(hwnd):
+        
+        if hwnd != 0:
             self.hide()
-            # 获取窗口位置和大小
-            left, top, right, bottom = win32gui.GetWindowRect(hwnd)
-            # 计算宽度和高度
-            width = right - left
-            height = bottom - top
-            
-            while win32gui.IsWindowVisible(hwnd):
-                pass
 
-            self.move(left+width/2-self.width()/2, top+height/2-self.height()/2)
-            self.show()
+            focus_screen = get_focus_screen()
+            # 获取焦点屏幕的参数
+            f_screen_geometry = focus_screen.geometry()
+            # 这里需要获取主屏幕的缩放系数，这个函数恰好只能获取主屏幕的，正好用这个
+            f_scale_factor = focus_screen.devicePixelRatio()
+
+            # 这个的输入是未缩放坐标
+            # 这个关系是缩放坐标到未缩放坐标的变换关系
+            pyautogui.middleClick(x=f_screen_geometry.left() + (self.geometry().center().x() - f_screen_geometry.left())*f_scale_factor,
+                                y=f_screen_geometry.top() + (self.geometry().center().y() - f_screen_geometry.top())*f_scale_factor)
+        
+            # win32gui.ShowWindow(hwnd,win32con.SW_SHOW)
+
+
+            # 判断窗口是否可见
+            # 本来判断了这个win32gui.IsWindowVisible(hwnd)，会导致不能短时间响应
+            if True:
+                # print("================================================")
+                # time.sleep(0.1)
+                while win32gui.IsWindowVisible(hwnd):
+                    pass
+                # 获取窗口位置和大小, 这里返回的是未经缩放的坐标
+                left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+
+                # 计算缩放后的宽度和高度
+                width = (right - left)
+                height = (bottom - top)
+                # width = (right - left)/f_scale_factor
+                # height = (bottom - top)/f_scale_factor
+
+                # 此处的0.44是quicker窗口的上面部分的高度，目前无法直接通过win32api获取到这个高度，因此测量了比例为0.44
+                # 这个变换
+                # 内置显示器还是有问题，实在不行，用win32api移动窗口吧
+
+                # self.move( f_screen_geometry.left()+(left - f_screen_geometry.left() )/f_scale_factor + width/2 - self.width()/2,
+                #           f_screen_geometry.top()+(top - f_screen_geometry.top())/f_scale_factor + height*0.44 - self.height()/2
+                #           )
+                
+                # 淦，QT坐标为缩放坐标，WIN32坐标为未缩放坐标，把设计WIN32坐标的操作全用win32api完成就没问题了
+                # 获取本窗口句柄
+                hwnd = self.winId()
+                win32gui.SetWindowPos(hwnd, win32con.HWND_TOP, int(left+width/2-self.width()/2),
+                                    int(top+height/2-self.height()/2), self.width(), self.height(), win32con.SWP_SHOWWINDOW)
+
+                threading.Thread(target=anime_WindowOpacity, args=(self,)).start()
+                self.show()
+            else:
+                pass
 
     def change_screen(self):
         global app
@@ -939,7 +986,7 @@ class WindowB(QWidget):
         # 获取焦点屏幕的参数
         to_screen_geometry = to_screen.geometry()
         f_x, f_y, f_width, f_height = to_screen_geometry.x(), to_screen_geometry.y(), to_screen_geometry.width(), to_screen_geometry.height()
-        f_scale_factor = to_screen.devicePixelRatio()
+        # f_scale_factor = to_screen.devicePixelRatio()
         # 考虑缩放后要四舍五入，系统问题，不一定是整数
         # f_xrb = round(f_x+f_width*f_scale_factor)
         # f_yrb = round(f_y+f_height*f_scale_factor)
