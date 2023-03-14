@@ -37,18 +37,19 @@ import copy
 
 def get_system_volume():
     # 获取系统默认的音频设备
-    devices = AudioUtilities.GetSpeakers()
-    interface = devices.Activate(
-        IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-    volume = cast(interface, POINTER(IAudioEndpointVolume))
 
-    current_volume = 0
+    devices = AudioUtilities.GetSpeakers()
+    interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+    volume = cast(interface, POINTER(IAudioEndpointVolume))
 
     # 获取系统音量
     try:
         current_volume = volume.GetMasterVolumeLevelScalar()
     except:
-        pass
+        devices = AudioUtilities.GetSpeakers()
+        interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+        volume = cast(interface, POINTER(IAudioEndpointVolume))
+        current_volume = volume.GetMasterVolumeLevelScalar()
     # 将音量转换为百分比
     current_volume_percentage = round(current_volume * 100)
     return current_volume_percentage
@@ -56,8 +57,7 @@ def get_system_volume():
 def set_system_volume(vol):
     # 获取系统默认的音频设备
     devices = AudioUtilities.GetSpeakers()
-    interface = devices.Activate(
-        IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+    interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
     volume = cast(interface, POINTER(IAudioEndpointVolume))
     volume.SetMasterVolumeLevelScalar(vol/100, None)
 
@@ -103,6 +103,7 @@ class MyScrollArea(QScrollArea):
     def wheelEvent(self, event):
         # 忽略滚轮事件
         event.accept()  
+
 # 自定义按钮
 class MyQPushButton(QPushButton):
     def __init__(self, parent=None):
@@ -266,10 +267,11 @@ class CircularSlider(QSlider):
         self.setPageStep(15)  # 设置页面步长
         
         # 转换当前音量到角度
-        if get_system_volume()/100*270<100/6:
-            self.last_angle=get_system_volume()/100*270+315
+        vol = get_system_volume()
+        if vol/100*270<100/6:
+            self.last_angle=vol/100*270+315
         else:
-            self.last_angle=get_system_volume()/100*270-45
+            self.last_angle=vol/100*270-45
         
         self.setValue(self.last_angle)
 
@@ -314,7 +316,7 @@ class CircularSlider(QSlider):
 
     def timer_update_volume(self):
         # 转换当前音量到角度
-        if get_system_volume()/100*270<100/6:
+        if get_system_volume()<100/6:
             self.last_angle=get_system_volume()/100*270+315
         else:
             self.last_angle=get_system_volume()/100*270-45
@@ -375,6 +377,7 @@ class CircularSlider(QSlider):
         # 因为重绘有控件大小改变，所以在这里重新设置标签大小位置
         self.label.setGeometry(self.width()/2-150/2,
                                 self.height()/2-150/2, 150, 150)
+        
 
 
     def mousePressEvent(self, event):
@@ -772,7 +775,7 @@ class WindowB(QWidget):
         self.button9.setStyleSheet(button_style)
 
         self.button91 = MyQPushButton(self)
-        self.button9.setIcon(QIcon(os.path.join(data_dir, 'screenshot.png')))
+        self.button91.setIcon(QIcon(os.path.join(data_dir, 'screenshot.png')))
         self.button91.setIconSize(QSize(50, 50))
         self.button91.setFixedSize(50, 50)
         self.button91.clicked.connect(self.take_screenshot)
@@ -780,7 +783,7 @@ class WindowB(QWidget):
         self.button91.setStyleSheet(button_style)
 
         self.button92 = MyQPushButton(self)
-        self.button9.setIcon(QIcon(os.path.join(data_dir, 'screenshot.png')))
+        self.button92.setIcon(QIcon(os.path.join(data_dir, 'screenshot.png')))
         self.button92.setIconSize(QSize(50, 50))
         self.button92.setFixedSize(50, 50)
         self.button92.clicked.connect(self.take_screenshot)
