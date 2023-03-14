@@ -100,6 +100,7 @@ class MyScrollArea(QScrollArea):
     def wheelEvent(self, event):
         # 忽略滚轮事件
         event.accept()  
+
 # 自定义按钮
 class MyQPushButton(QPushButton):
     def __init__(self, parent=None):
@@ -263,10 +264,11 @@ class CircularSlider(QSlider):
         self.setPageStep(15)  # 设置页面步长
         
         # 转换当前音量到角度
-        if get_system_volume()/100*270<100/6:
-            self.last_angle=get_system_volume()/100*270+315
+        vol = get_system_volume()
+        if vol/100*270<100/6:
+            self.last_angle=vol/100*270+315
         else:
-            self.last_angle=get_system_volume()/100*270-45
+            self.last_angle=vol/100*270-45
         
         self.setValue(self.last_angle)
 
@@ -311,7 +313,7 @@ class CircularSlider(QSlider):
 
     def timer_update_volume(self):
         # 转换当前音量到角度
-        if get_system_volume()/100*270<100/6:
+        if get_system_volume()<100/6:
             self.last_angle=get_system_volume()/100*270+315
         else:
             self.last_angle=get_system_volume()/100*270-45
@@ -372,6 +374,7 @@ class CircularSlider(QSlider):
         # 因为重绘有控件大小改变，所以在这里重新设置标签大小位置
         self.label.setGeometry(self.width()/2-150/2,
                                 self.height()/2-150/2, 150, 150)
+        
 
 
     def mousePressEvent(self, event):

@@ -91,6 +91,8 @@ class CircularSlider(QSlider):
         else:
             painter.drawArc(rect, 45*16, -self.value()*16-45*16)
 
+        # print(self.value())
+
         # 绘制滑块
         # painter.setPen(Qt.NoPen)
         # painter.setBrush(QColor(50, 50, 50))

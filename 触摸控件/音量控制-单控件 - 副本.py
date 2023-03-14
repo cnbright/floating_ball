@@ -39,7 +39,7 @@ def set_system_volume(vol):
     volume.SetMasterVolumeLevelScalar(vol/100, None)
 
 
-# Slider类
+
 class CircularSlider(QSlider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -49,11 +49,10 @@ class CircularSlider(QSlider):
         self.setPageStep(15)  # 设置页面步长
         
         # 转换当前音量到角度
-        vol = get_system_volume()
-        if vol/100*270<100/6:
-            self.last_angle=vol/100*270+315
+        if get_system_volume()/100*270<100/6:
+            self.last_angle=get_system_volume()/100*270+315
         else:
-            self.last_angle=vol/100*270-45
+            self.last_angle=get_system_volume()/100*270-45
         
         self.setValue(self.last_angle)
 
@@ -98,14 +97,15 @@ class CircularSlider(QSlider):
 
     def timer_update_volume(self):
         # 转换当前音量到角度
-        if get_system_volume()<100/6:
-            self.last_angle=get_system_volume()/100*270+315
+        vol = get_system_volume()
+        if vol/100*270<100/6:
+            self.last_angle=vol/100*270+315
         else:
-            self.last_angle=get_system_volume()/100*270-45
+            self.last_angle=vol/100*270-45
         
         self.setValue(self.last_angle)
-        self.vol = round(get_system_volume())
-        self.updateLabel(0)
+        self.vol = round(vol)
+        self.updateLabel(self.vol)
 
     def updateLabel(self, value):
         # 根据音量更新标签字体颜色
@@ -138,7 +138,7 @@ class CircularSlider(QSlider):
         center = rect.center()
         gradient = QConicalGradient(center, -270)
         gradient.setColorAt(0, QColor(145, 150, 156))
-        # gradient.setColorAt(0.5, QColor(255, 255, 0))
+
         gradient.setColorAt(1, QColor(40, 50, 59))
         painter.setBrush(QBrush(gradient))
         # startAngle和spanAngle必须以1/16度指定
@@ -159,7 +159,6 @@ class CircularSlider(QSlider):
         # 因为重绘有控件大小改变，所以在这里重新设置标签大小位置
         self.label.setGeometry(self.width()/2-150/2,
                                 self.height()/2-150/2, 150, 150)
-        
 
 
     def mousePressEvent(self, event):
@@ -185,9 +184,9 @@ class CircularSlider(QSlider):
         else:
             self.setValue(self.angle(event))
             if self.value()>=315:
-                self.vol = (self.value()-315)/270*100
+                self.vol = round((self.value()-315)/270*100)
             else:
-                self.vol = (self.value()+45)/270*100
+                self.vol = round((self.value()+45)/270*100)
             set_system_volume(self.vol)
 
     def mouseReleaseEvent(self, event):
@@ -206,7 +205,7 @@ class CircularSlider(QSlider):
         center = self.rect().center()
         x = event.pos().x() - center.x()
         y = event.pos().y() - center.y()
-        ag = round((180 / 3.14159 * (atan2(y, x)) ) % 360)
+        ag = round((180 / 3.14159 * (atan2(y, x)) ) / 360)
         if 315>ag>225:
             ag=self.last_angle
         return ag
