@@ -930,27 +930,27 @@ class WindowB(QWidget):
                 left, top, right, bottom = win32gui.GetWindowRect(hwnd)
 
                 # 计算缩放后的宽度和高度
-                width = (right - left)
-                height = (bottom - top)
-                # width = (right - left)/f_scale_factor
-                # height = (bottom - top)/f_scale_factor
+                # width = (right - left)
+                # height = (bottom - top)
+                width = (right - left)/f_scale_factor
+                height = (bottom - top)/f_scale_factor
 
                 # 此处的0.44是quicker窗口的上面部分的高度，目前无法直接通过win32api获取到这个高度，因此测量了比例为0.44
                 # 这个变换
-                # 内置显示器还是有问题，实在不行，用win32api移动窗口吧
-
-                # self.move( f_screen_geometry.left()+(left - f_screen_geometry.left() )/f_scale_factor + width/2 - self.width()/2,
-                #           f_screen_geometry.top()+(top - f_screen_geometry.top())/f_scale_factor + height*0.44 - self.height()/2
-                #           )
-                
-                # 淦，QT坐标为缩放坐标，WIN32坐标为未缩放坐标，把设计WIN32坐标的操作全用win32api完成就没问题了
-                # 获取本窗口句柄
+                # 如存在问题，修改主显示器
                 time.sleep(0.1)
-                hwnd = self.winId()
-                win32gui.SetWindowPos(hwnd, win32con.HWND_TOP, int(left+width/2-self.width()/2),
-                                    int(top+height/2-self.height()/2), self.width(), self.height(), win32con.SWP_SHOWWINDOW)
+                self.move( f_screen_geometry.left()+(left - f_screen_geometry.left() )/f_scale_factor + width/2 - self.width()/2,
+                          f_screen_geometry.top()+(top - f_screen_geometry.top())/f_scale_factor + height*0.44 - self.height()/2
+                          )
+                
+                # QT坐标为缩放坐标，WIN32坐标为未缩放坐标，把设计WIN32坐标的操作全用win32api完成就没问题了
+                # 获取本窗口句柄
+                # time.sleep(0.1)
+                # hwnd = self.winId()
+                # win32gui.SetWindowPos(hwnd, win32con.HWND_TOP, int(left+width/2-self.width()/2),
+                #                     int(top+height/2-self.height()/2), self.width(), self.height(), win32con.SWP_SHOWWINDOW)
 
-                # threading.Thread(target=anime_WindowOpacity, args=(self,)).start()
+                threading.Thread(target=anime_WindowOpacity, args=(self,)).start()
                 self.show()
             else:
                 pass
@@ -982,10 +982,7 @@ class WindowB(QWidget):
         # 获取焦点屏幕的参数
         to_screen_geometry = to_screen.geometry()
         f_x, f_y, f_width, f_height = to_screen_geometry.x(), to_screen_geometry.y(), to_screen_geometry.width(), to_screen_geometry.height()
-        # f_scale_factor = to_screen.devicePixelRatio()
-        # 考虑缩放后要四舍五入，系统问题，不一定是整数
-        # f_xrb = round(f_x+f_width*f_scale_factor)
-        # f_yrb = round(f_y+f_height*f_scale_factor)
+
         f_xrb = round(f_x+f_width)
         f_yrb = round(f_y+f_height)
 
