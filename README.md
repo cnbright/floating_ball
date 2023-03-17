@@ -41,7 +41,7 @@
 pyinstaller编译命令
 
 ```bash
-pyinstaller --onefile --noconsole --add-data ".\images;images" --add-data "C:\Users\rzdby\anaconda3\lib\site-packages\PySide6\plugins\platforms;platforms" 双窗口悬浮球_编译.py
+pyinstaller --onefile --noconsole --icon=.\images\float.ico --add-data ".\images;images" --add-data "C:\Users\rzdby\anaconda3\lib\site-packages\PySide6\plugins\platforms;platforms" 双窗口悬浮球_编译.py
 ```
 
 其中，路径
